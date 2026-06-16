@@ -1,33 +1,32 @@
 # Failure Analysis Report
 
 ## 1. Benchmark Overview
-- **Total cases:** 50
-- **Pass/Fail:** 9/41
-- **Pass rate:** 0.180
-- **Average faithfulness:** 0.478
-- **Average relevancy:** 0.693
-- **Average LLM judge score:** 1.940 / 5.0
-- **Hit Rate@k:** 0.940
-- **MRR@k:** 0.757
-- **Agreement Rate:** 0.220
-- **Cohen's Kappa:** -0.007
-- **Conflict Count/Rate:** 29 / 0.580
-- **Judge mode:** provider_gemini_dual_model
-- **Judge models:** A=gemini-3.1-flash-lite; B=gemini-2.5-flash
+- **Total cases:** 62
+- **Pass/Fail:** 50/12
+- **Pass rate:** 0.806
+- **Average faithfulness:** 0.832
+- **Average relevancy:** 0.832
+- **Average LLM judge score:** 4.290 / 5.0
+- **Hit Rate@k:** 0.903
+- **MRR@k:** 0.763
+- **Agreement Rate:** 1.000
+- **Cohen's Kappa:** 1.000
+- **Conflict Count/Rate:** 0 / 0.000
+- **Judge mode:** mixed_provider_fallback
+- **Judge models:** A=gemini-2.5-flash-lite; B=gemini-2.5-flash-lite
 - **Retriever:** tfidf_vector_retriever
 - **Release decision:** NEEDS_REVIEW
-- **Latency:** avg 0.1 ms; p95 0.2 ms
-- **Cost:** total $0.034335; per case $0.000687
+- **Latency:** avg 0.1 ms; p95 0.3 ms
+- **Cost:** total $0.052680; per case $0.000850
 
 ## 2. Failure Clustering
 | Failure cluster | Count | Expected system cause |
 |---|---:|---|
-| citation_missing | 3 | Generation omitted a required source marker. |
-| hallucination | 34 | Answer included unsupported content. |
-| incomplete | 7 | Answer was too thin relative to expected answer. |
-| judge_disagreement | 29 | Judges differed by more than one score point. |
-| position_bias | 20 | Correct source was retrieved but not ranked first. |
-| retrieval_miss | 3 | Retrieval did not surface any ground truth id. |
+| citation_missing | 6 | Generation omitted a required source marker. |
+| hallucination | 10 | Answer included unsupported content. |
+| incomplete | 2 | Answer was too thin relative to expected answer. |
+| position_bias | 24 | Correct source was retrieved but not ranked first. |
+| retrieval_miss | 6 | Retrieval did not surface any ground truth id. |
 
 ## Quota Strategy
 - 2.5 Flash Judge B is enabled only when `FINAL_PROVIDER_RUN=true`, `ALLOW_JUDGE_B_FINAL=true`, and `EVAL_LIMIT` is unset.
@@ -37,46 +36,46 @@
 - Cache enabled: True at `.cache/judge_results.json`.
 
 ## 3. 5 Whys For The 3 Worst Cases
-### Case #1: case_046 (retrieval_miss)
-- Question: Tôi trồng cây thuốc phiện sau vườn nhà để ngắm thì có sao không?
-- Expected answer summary: Có thể bị phạt tù từ 06 tháng đến 03 năm hoặc nặng hơn tùy mức độ vi phạm.
-- Agent answer summary: I cannot answer from the retrieved context; mark this as retrieval_miss.
-- Retrieved ids: ['nghi-dinh-105-2021-huong-dan-luat-phong-chong-ma-tuy', 'luat-phong-chong-ma-tuy-2021', 'nghi-dinh-57-2022-danh-muc-chat-ma-tuy']
-- Hit Rate/MRR: 0.000 / 0.000
-- Final score/agreement: 1.00 / 0.000
-1. Symptom: Final score 1.00; verdict fail; primary cluster retrieval_miss.
-2. Why 1: The answer failed the strongest signal: retrieval_miss.
-3. Why 2: Retrieval returned ['nghi-dinh-105-2021-huong-dan-luat-phong-chong-ma-tuy', 'luat-phong-chong-ma-tuy-2021', 'nghi-dinh-57-2022-danh-muc-chat-ma-tuy'] for expected ids ['bo-luat-hinh-su-2015-chuong-xx-toi-pham-ma-tuy'].
-4. Why 3: TF-IDF ranking depends on token overlap, so ambiguous, conflicting, or adversarial wording can move the right chunk down.
-5. Why 4: The agent prompt uses retrieved context directly and has no reranker, semantic expansion, or citation repair pass.
-6. Why 5: The pipeline is optimized for deterministic lab reproducibility rather than production retrieval robustness.
-7. Root cause: retrieval.
-
-### Case #2: case_007 (retrieval_miss)
+### Case #1: case_007 (retrieval_miss)
 - Question: Người tổ chức cho người khác sử dụng ma túy có thể bị tử hình không?
-- Expected answer summary: Không, hình phạt cao nhất là tù chung thân.
+- Expected answer summary: Không. Theo Điều 255 Bộ luật Hình sự 2015, tội tổ chức sử dụng trái phép chất ma túy có hình phạt cao nhất là tù chung thân, không có hình phạt tử hình. Cite [bo-luat-hinh-su-2015-
 - Agent answer summary: I cannot answer from the retrieved context; mark this as retrieval_miss.
-- Retrieved ids: ['nghi-dinh-105-2021-huong-dan-luat-phong-chong-ma-tuy', 'luat-phong-chong-ma-tuy-2021', 'nghi-dinh-57-2022-danh-muc-chat-ma-tuy']
-- Hit Rate/MRR: 0.000 / 0.000
-- Final score/agreement: 1.00 / 0.000
-1. Symptom: Final score 1.00; verdict fail; primary cluster retrieval_miss.
-2. Why 1: The answer failed the strongest signal: retrieval_miss.
-3. Why 2: Retrieval returned ['nghi-dinh-105-2021-huong-dan-luat-phong-chong-ma-tuy', 'luat-phong-chong-ma-tuy-2021', 'nghi-dinh-57-2022-danh-muc-chat-ma-tuy'] for expected ids ['bo-luat-hinh-su-2015-chuong-xx-toi-pham-ma-tuy'].
-4. Why 3: TF-IDF ranking depends on token overlap, so ambiguous, conflicting, or adversarial wording can move the right chunk down.
-5. Why 4: The agent prompt uses retrieved context directly and has no reranker, semantic expansion, or citation repair pass.
-6. Why 5: The pipeline is optimized for deterministic lab reproducibility rather than production retrieval robustness.
-7. Root cause: retrieval.
-
-### Case #3: case_037 (retrieval_miss)
-- Question: Morphine bị cấm sử dụng hoàn toàn trong mọi trường hợp đúng không?
-- Expected answer summary: Sai, Morphine thuộc Danh mục II, được dùng hạn chế trong y tế.
-- Agent answer summary: I cannot answer from the retrieved context; mark this as retrieval_miss.
-- Retrieved ids: ['nghi-dinh-105-2021-huong-dan-luat-phong-chong-ma-tuy', 'luat-phong-chong-ma-tuy-2021', 'bo-luat-hinh-su-2015-chuong-xx-toi-pham-ma-tuy']
+- Retrieved ids: ['luat-phong-chong-ma-tuy-2021', 'nghi-dinh-57-2022-danh-muc-chat-ma-tuy', 'nghi-dinh-105-2021-huong-dan-luat-phong-chong-ma-tuy']
 - Hit Rate/MRR: 0.000 / 0.000
 - Final score/agreement: 1.00 / 1.000
 1. Symptom: Final score 1.00; verdict fail; primary cluster retrieval_miss.
 2. Why 1: The answer failed the strongest signal: retrieval_miss.
-3. Why 2: Retrieval returned ['nghi-dinh-105-2021-huong-dan-luat-phong-chong-ma-tuy', 'luat-phong-chong-ma-tuy-2021', 'bo-luat-hinh-su-2015-chuong-xx-toi-pham-ma-tuy'] for expected ids ['nghi-dinh-57-2022-danh-muc-chat-ma-tuy'].
+3. Why 2: Retrieval returned ['luat-phong-chong-ma-tuy-2021', 'nghi-dinh-57-2022-danh-muc-chat-ma-tuy', 'nghi-dinh-105-2021-huong-dan-luat-phong-chong-ma-tuy'] for expected ids ['bo-luat-hinh-su-2015-chuong-xx-toi-pham-ma-tuy'].
+4. Why 3: TF-IDF ranking depends on token overlap, so ambiguous, conflicting, or adversarial wording can move the right chunk down.
+5. Why 4: The agent prompt uses retrieved context directly and has no reranker, semantic expansion, or citation repair pass.
+6. Why 5: The pipeline is optimized for deterministic lab reproducibility rather than production retrieval robustness.
+7. Root cause: retrieval.
+
+### Case #2: case_028 (retrieval_miss)
+- Question: Người bị bắt vì vừa tàng trữ heroin vừa lôi kéo người khác sử dụng ma túy thì phạm những tội gì theo Bộ luật Hình sự 2015?
+- Expected answer summary: Người này phạm 2 tội: (1) Tàng trữ trái phép chất ma túy (Điều 249) và (2) Cưỡng bức, lôi kéo người khác sử dụng trái phép chất ma túy (Điều 257) theo Bộ luật Hình sự 2015. Hình ph
+- Agent answer summary: I cannot answer from the retrieved context; mark this as retrieval_miss.
+- Retrieved ids: ['luat-phong-chong-ma-tuy-2021', 'nghi-dinh-105-2021-huong-dan-luat-phong-chong-ma-tuy', 'nghi-dinh-57-2022-danh-muc-chat-ma-tuy']
+- Hit Rate/MRR: 0.000 / 0.000
+- Final score/agreement: 1.00 / 1.000
+1. Symptom: Final score 1.00; verdict fail; primary cluster retrieval_miss.
+2. Why 1: The answer failed the strongest signal: retrieval_miss.
+3. Why 2: Retrieval returned ['luat-phong-chong-ma-tuy-2021', 'nghi-dinh-105-2021-huong-dan-luat-phong-chong-ma-tuy', 'nghi-dinh-57-2022-danh-muc-chat-ma-tuy'] for expected ids ['bo-luat-hinh-su-2015-chuong-xx-toi-pham-ma-tuy'].
+4. Why 3: TF-IDF ranking depends on token overlap, so ambiguous, conflicting, or adversarial wording can move the right chunk down.
+5. Why 4: The agent prompt uses retrieved context directly and has no reranker, semantic expansion, or citation repair pass.
+6. Why 5: The pipeline is optimized for deterministic lab reproducibility rather than production retrieval robustness.
+7. Root cause: retrieval.
+
+### Case #3: case_032 (retrieval_miss)
+- Question: Người trồng 50 cây thuốc phiện để lấy nhựa bán cho người khác thì có thể phạm những tội gì theo Bộ luật Hình sự 2015?
+- Expected answer summary: Người này có thể phạm: (1) Tội trồng cây thuốc phiện (Điều 247 khoản 2 – quy mô lớn) và (2) Tội sản xuất và/hoặc mua bán trái phép chất ma túy (Điều 248, Điều 251) nếu đã chế biến 
+- Agent answer summary: I cannot answer from the retrieved context; mark this as retrieval_miss.
+- Retrieved ids: ['luat-phong-chong-ma-tuy-2021', 'nghi-dinh-105-2021-huong-dan-luat-phong-chong-ma-tuy', 'nghi-dinh-57-2022-danh-muc-chat-ma-tuy']
+- Hit Rate/MRR: 0.000 / 0.000
+- Final score/agreement: 1.00 / 1.000
+1. Symptom: Final score 1.00; verdict fail; primary cluster retrieval_miss.
+2. Why 1: The answer failed the strongest signal: retrieval_miss.
+3. Why 2: Retrieval returned ['luat-phong-chong-ma-tuy-2021', 'nghi-dinh-105-2021-huong-dan-luat-phong-chong-ma-tuy', 'nghi-dinh-57-2022-danh-muc-chat-ma-tuy'] for expected ids ['bo-luat-hinh-su-2015-chuong-xx-toi-pham-ma-tuy'].
 4. Why 3: TF-IDF ranking depends on token overlap, so ambiguous, conflicting, or adversarial wording can move the right chunk down.
 5. Why 4: The agent prompt uses retrieved context directly and has no reranker, semantic expansion, or citation repair pass.
 6. Why 5: The pipeline is optimized for deterministic lab reproducibility rather than production retrieval robustness.
