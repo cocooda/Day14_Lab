@@ -70,6 +70,31 @@ python main.py
 python check_lab.py
 ```
 
+Optional real judge setup:
+
+```bash
+cp .env.example .env
+```
+
+Fill `GEMINI_API_KEY`, `GEMINI_JUDGE_A_MODEL`, and `GEMINI_JUDGE_B_MODEL` in `.env`. The judge engine uses the official `google-genai` SDK style:
+
+```python
+from google import genai
+
+client = genai.Client()
+response = client.models.generate_content(
+    model=model_name,
+    contents=prompt,
+)
+text = response.text
+```
+
+Do not commit `.env`.
+
+Judge mode is recorded in `reports/summary.json` as `judge.judge_mode`. With two working Gemini models, the mode is `provider_gemini_dual_model`. If only one Gemini model works, the mode is `provider_gemini_single_model` and the release gate returns `NEEDS_REVIEW`. With no key, the lab runs in `offline_fallback` mode using deterministic judges for local reproducibility only; this is not final provider scoring. Low agreement rate or low Cohen's Kappa is not hidden.
+
+Ownership is split clearly: Linh owns dataset, SDG, `data/synthetic_gen.py`, `data/golden_set.jsonl`, and hard cases. Duc owns retrieval metrics integration, Gemini multi-judge, async runner, regression gate, reports, failure analysis, validation, and docs.
+
 ---
 
 ## ⚠️ Lưu ý quan trọng

@@ -1,20 +1,45 @@
-# Hướng dẫn thiết kế Hard Cases cho AI Evaluation
+# Hard Cases Guide
 
-Để bài lab đủ độ khó cho nhóm 6 người, các bạn cần thiết kế các test cases có tính thử thách cao:
+Owner: Linh
 
-### 1. Adversarial Prompts (Tấn công bằng Prompt)
-- **Prompt Injection:** Thử lừa Agent bỏ qua context để trả lời theo ý người dùng.
-- **Goal Hijacking:** Yêu cầu Agent thực hiện một hành động không liên quan đến nhiệm vụ chính (ví dụ: đang là hỗ trợ kỹ thuật nhưng yêu cầu viết thơ về chính trị).
+This guide documents the Linh-owned golden dataset and synthetic data generation work for Lab Day 14. The engine may consume this data, but dataset design, SDG, expected retrieval IDs, and hard-case coverage belong to Linh.
 
-### 2. Edge Cases (Trường hợp biên)
-- **Out of Context:** Đặt câu hỏi mà tài liệu không hề đề cập. Agent phải biết nói "Tôi không biết" thay vì bịa chuyện (Hallucination).
-- **Ambiguous Questions:** Câu hỏi mập mờ, thiếu thông tin để xem Agent có biết hỏi lại (clarify) không.
-- **Conflicting Information:** Đưa ra 2 đoạn tài liệu mâu thuẫn nhau để xem Agent xử lý thế nào.
+## Case Schema
 
-### 3. Multi-turn Complexity
-- **Context Carry-over:** Câu hỏi thứ 2 phụ thuộc vào câu trả lời thứ 1.
-- **Correction:** Người dùng đính chính lại thông tin ở giữa cuộc hội thoại.
+Each JSONL row in `data/golden_set.jsonl` uses this schema:
 
-### 4. Technical Constraints
-- **Latency Stress:** Yêu cầu Agent xử lý một đoạn văn bản cực dài để đo giới hạn latency.
-- **Cost Efficiency:** Đánh giá xem Agent có đang dùng quá nhiều token không cần thiết cho các câu hỏi đơn giản không.
+```json
+{
+  "id": "case_001",
+  "question": "Question asked to the agent",
+  "expected_answer": "Reference answer with citations when needed",
+  "context": "Grounding text used to build the local retrieval corpus",
+  "expected_retrieval_ids": ["doc_001"],
+  "metadata": {
+    "difficulty": "easy",
+    "type": "fact-check"
+  }
+}
+```
+
+Normal cases must include at least one `expected_retrieval_ids` value. Out-of-context cases may use an empty list because the correct behavior is to abstain when no relevant source exists.
+
+## Case Types
+
+- `fact-check`: direct factual checks with a known supporting document.
+- `adversarial`: prompt-injection or red-team questions that should be answered only from evidence.
+- `out-of-context`: questions with no relevant source in the corpus.
+- `ambiguous`: questions that require clarification or explicit metric context.
+- `conflicting`: cases with two sources or claims that need careful reconciliation.
+- `multi-turn`: multi-hop or context-carryover style questions requiring more than one source.
+
+## How Retrieval IDs Are Used
+
+The evaluation engine retrieves `retrieved_ids` for each question and compares them to `expected_retrieval_ids`.
+
+- Hit Rate@k is `1.0` when at least one expected id appears in the top k retrieved ids.
+- MRR@k is the reciprocal rank of the first expected id in the top k retrieved ids.
+- Recall@k measures how many expected ids were retrieved.
+- Out-of-context cases are excluded from MRR averaging to avoid a division-by-zero style distortion.
+
+The IDs are not decorative labels. They are the ground-truth bridge between Linh's dataset and Duc's retrieval metrics/reporting pipeline.

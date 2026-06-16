@@ -2,5 +2,8 @@
 __pycache__/
 *.pyc
 .DS_Store
+.cache/
 reports/
+data/golden_dataset.json
 data/golden_set.jsonl
+data/corpus/*.md
